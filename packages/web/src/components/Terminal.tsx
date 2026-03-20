@@ -37,10 +37,9 @@ export function Terminal({ onInput, onResize, termRef, quickCommands, tokenLimit
     setInputValue('')
   }, [inputValue, onInput])
 
-  const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') {
-      handleSend()
-    }
+  const handleSubmit = useCallback((e: React.FormEvent) => {
+    e.preventDefault()
+    handleSend()
   }, [handleSend])
 
   const handleQuickCommand = useCallback((qc: QuickCommand) => {
@@ -163,8 +162,8 @@ export function Terminal({ onInput, onResize, termRef, quickCommands, tokenLimit
             {quickCommands.map((qc, i) => (
               <button
                 key={i}
-                onClick={(e) => { e.stopPropagation(); handleQuickCommand(qc) }}
-                onPointerDown={(e) => { e.stopPropagation(); e.preventDefault(); handleQuickCommand(qc) }}
+                onPointerDown={(e) => { e.stopPropagation(); e.preventDefault() }}
+                onPointerUp={(e) => { e.stopPropagation(); handleQuickCommand(qc) }}
                 className={`text-xs font-bold px-3 py-1 rounded-full border transition-all active:scale-95 ${variantClass(qc.variant)}`}
               >
                 {qc.label}
@@ -174,14 +173,14 @@ export function Terminal({ onInput, onResize, termRef, quickCommands, tokenLimit
         )}
 
         {/* Input row */}
-        <div className="flex items-center gap-2">
+        <form onSubmit={handleSubmit} className="flex items-center gap-2">
           <input
             ref={inputRef}
             type="text"
             value={inputValue}
             onChange={(e) => { e.stopPropagation(); setInputValue(e.target.value) }}
-            onKeyDown={handleKeyDown}
             placeholder="type a command..."
+            enterKeyHint="send"
             className="flex-1 bg-transparent text-white text-sm placeholder-gray-600 outline-none"
             autoComplete="off"
             autoCorrect="off"
@@ -192,16 +191,16 @@ export function Terminal({ onInput, onResize, termRef, quickCommands, tokenLimit
           {/* Zoom controls */}
           <div className="flex items-center bg-black/40 border border-white/10 rounded-xl overflow-hidden">
             <button
-              onClick={(e) => { e.stopPropagation(); setFontSize(f => Math.max(9, f - 1)) }}
-              onPointerDown={(e) => { e.stopPropagation(); e.preventDefault(); setFontSize(f => Math.max(9, f - 1)) }}
+              onPointerDown={(e) => { e.stopPropagation(); e.preventDefault() }}
+              onPointerUp={(e) => { e.stopPropagation(); setFontSize(f => Math.max(9, f - 1)) }}
               className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-white hover:bg-white/5 transition-colors font-bold text-xs"
             >
               A-
             </button>
             <div className="w-[1px] bg-white/10 self-stretch" />
             <button
-              onClick={(e) => { e.stopPropagation(); setFontSize(f => Math.min(24, f + 1)) }}
-              onPointerDown={(e) => { e.stopPropagation(); e.preventDefault(); setFontSize(f => Math.min(24, f + 1)) }}
+              onPointerDown={(e) => { e.stopPropagation(); e.preventDefault() }}
+              onPointerUp={(e) => { e.stopPropagation(); setFontSize(f => Math.min(24, f + 1)) }}
               className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-white hover:bg-white/5 transition-colors font-bold text-xs"
             >
               A+
@@ -210,13 +209,13 @@ export function Terminal({ onInput, onResize, termRef, quickCommands, tokenLimit
 
           {/* Send button */}
           <button
-            onClick={(e) => { e.stopPropagation(); handleSend() }}
-            onPointerDown={(e) => { e.stopPropagation(); e.preventDefault(); handleSend() }}
+            onPointerDown={(e) => { e.stopPropagation(); e.preventDefault() }}
+            onPointerUp={(e) => { e.stopPropagation(); handleSend() }}
             className="w-8 h-8 flex items-center justify-center bg-teal-500/20 text-teal-400 border border-teal-500/30 rounded-xl text-sm font-bold transition-all active:scale-95 hover:bg-teal-500/30"
           >
             ↵
           </button>
-        </div>
+        </form>
       </div>
 
       <style>{`

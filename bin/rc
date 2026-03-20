@@ -1,0 +1,25 @@
+#!/bin/bash
+
+# claude-remote 'rc' (Remote Connect) command
+# Sends current directory to the relay server for mobile handover.
+
+PORT=${PORT:-3001}
+CWD=$(pwd)
+LABEL=$(basename "$CWD")
+SID=${SESSION_ID:-""}
+
+echo "🔗 Handing over project '$LABEL' to remote..."
+[ -n "$SID" ] && echo "🆔 Session: $SID"
+echo "📂 Path: $CWD"
+
+curl -s -X POST http://localhost:$PORT/api/handover \
+  -H "Content-Type: application/json" \
+  -d "{\"path\": \"$CWD\", \"label\": \"$LABEL\", \"sessionId\": \"$SID\"}" \
+  > /dev/null
+
+if [ $? -eq 0 ]; then
+  echo "✅ Handover signal sent! Check your phone."
+else
+  echo "❌ Failed to connect to claude-remote server on port $PORT."
+  echo "   Make sure 'bun run dev' is running."
+fi

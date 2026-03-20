@@ -42,12 +42,13 @@ bun run web
 
 ## 주요 기능
 
-- Claude Code + Gemini CLI 모두 지원
-- 세션 중 provider 전환 (Claude → Gemini)
-- iPhone 홈 화면 추가 (PWA)
-- 암호화 WebSocket 통신
-- 다중 세션 동시 실행
+- **Claude Code + Gemini CLI** 원격 조작 (PTY 기반)
+- **세션 자동 재연결**: 네트워크 끊김 시 지수 백오프 적용 자동 복구
+- **세션 목록 & 재부착**: 기존 세션 목록을 불러와 중단 지점에서 재개 (Attach)
+- **iPhone PWA 최적화**: 홈 화면 추가, 모바일 터치 터미널 지원
+- **Provider 전환**: 세션 중 한 번의 탭으로 Claude ↔ Gemini 즉시 전환
+- **멀티 디바이스**: Tailscale IP 자동 감지 및 QR 코드 연결
 
 ## 상태
 
-> 설계 단계 — 구현 진행 중
+> v1 핵심 코드 구현 완료 — 안정성 및 모바일 UX 고도화 중 (2026-03-20)

@@ -1,127 +1,116 @@
-# Parallel Task Plan: [프로젝트명]
+# Parallel Task Plan: claude-remote v1 기능 완성
 
-> 작성일: YYYY-MM-DD
-> 목적: [이번 병렬 작업의 목표 한 줄 요약]
+> 작성일: 2026-03-20
+> 목적: iPhone ↔ Mac 원격 터미널 PWA를 실 사용 가능한 v1으로 완성
 > 세션 종료 후 `.context/CURRENT.md` + `SESSIONS.md`에 결과 기록
 
 ---
 
-## 에이전트 구성
+## 현재 상태
 
-| 에이전트 | 모델 | 역할 | 집중 영역 |
-|----------|------|------|-----------|
-| Leader | Claude Sonnet | 설계 / 배분 / 통합 | 전체 조율 |
-| Worker A | Claude Sonnet | 아키텍처 / 신규 기능 | 시스템 설계, 복잡한 로직 |
-| Worker B | Gemini Pro | 최적화 / 클린업 | 코드 품질, 성능, 배포 |
-| Worker C | Claude Haiku | 리서치 / 문서 | 조사, 정리 (선택) |
-
----
-
-## 파일 소유권 선언
-
-> ⚠️ 같은 파일이 두 에이전트에 등장하면 → 직렬 처리 블록으로 이동
-
-### Worker A 파일 소유권
-- `path/to/file-a.js`  ← 신규 생성
-- `path/to/file-b.jsx` ← 수정
-
-### Worker B 파일 소유권
-- `path/to/file-c.js`  ← 수정
-- `path/to/file-d.jsx` ← 수정
+| 완료 | 항목 |
+|------|------|
+| ✅ | 서버 스캐폴딩 (Bun + Hono + node-pty) |
+| ✅ | 웹 스캐폴딩 (React + Vite + xterm.js + Tailwind) |
+| ✅ | Provider 정의 (Claude / Gemini) |
+| ✅ | 세션 생성 + WebSocket I/O |
+| ✅ | Provider 전환 (switch_provider) |
+| ✅ | 멀티 디바이스 — ServerSelect UI + useServerConfig |
+| ✅ | Tailscale IP 감지 + QR 코드 |
+| ✅ | 빌드 통과 (server + web) |
 
 ---
 
-## 태스크 목록
+## 에이전트 구성 (이번 세션)
 
-### Worker A
-
-**Focus**: [집중 영역]
-
-1. **[태스크유형] 태스크명**
-   - 목표: [한 문장]
-   - 기술 명세: [엔드포인트/컴포넌트/함수명, 입출력]
-   - 완료 기준(DoD):
-     - [ ] [검증 조건 1]
-     - [ ] [검증 조건 2]
-     - [ ] 빌드 통과
-   - 의존: [없음 / 태스크 ID]
-   - 산출물: [파일명]
-
-2. **[태스크유형] 태스크명**
-   - ...
-
-### Worker B
-
-**Focus**: [집중 영역]
-
-1. **[태스크유형] 태스크명**
-   - 목표: [한 문장]
-   - 기술 명세: ...
-   - 완료 기준(DoD):
-     - [ ] ...
-   - 의존: [없음 / 태스크 ID]
-   - 산출물: [파일명]
+| 에이전트 | 역할 | 집중 영역 |
+|----------|------|-----------|
+| Orchestrator (나) | 설계 + 배분 + 구현 | 전체 조율 + 코딩 |
 
 ---
 
-## 의존성 그래프
+## 태스크 목록 (우선순위순)
+
+### Phase 1: 안정성 + 실사용 필수 기능
+
+#### T1. 🔌 WebSocket 자동 재연결
+- **목표**: 네트워크 끊김 시 자동 복구 (iPhone 이동 중 필수)
+- **파일**: `packages/web/src/hooks/useRelay.ts`
+- **명세**:
+  - exponential backoff (1s → 2s → 4s → max 30s)
+  - 연결 상태 UI 표시 (연결 중 / 재연결 시도 / 오류)
+  - 재연결 시 기존 세션 자동 attach
+- **완료 기준**:
+  - [ ] 서버 재시작해도 자동 복구
+  - [ ] 연결 상태 indicator UI
+  - [ ] 빌드 통과
+
+#### T2. 📋 세션 목록 + 재연결 UI
+- **목표**: 이전 세션 목록 표시 + 선택해서 재연결
+- **파일**: `packages/web/src/components/SessionList.tsx` (신규), `App.tsx`
+- **명세**:
+  - `/api/sessions` 호출 → 활성 세션 목록 표시
+  - 세션 클릭 → attach_session WS 메시지
+  - 세션별 provider, 생성시간, CWD 표시
+- **완료 기준**:
+  - [ ] 세션 목록 UI 컴포넌트
+  - [ ] attach 동작 확인
+  - [ ] 빌드 통과
+
+#### T3. 🎨 모바일 터미널 UX 개선
+- **목표**: iPhone 세로/가로 모드에서 터미널이 자연스럽게 동작
+- **파일**: `packages/web/src/components/Terminal.tsx`, `index.css`
+- **명세**:
+  - Safe area inset 처리 (노치, 하단 바)
+  - 키보드 올라올 때 터미널 리사이즈
+  - 모바일 터치 스크롤 지원
+  - 폰트 사이즈 조절 (핀치 줌 or 버튼)
+- **완료 기준**:
+  - [ ] iPhone Safari에서 키보드 + 터미널 정상 동작
+  - [ ] 건드리면 키보드 올라옴
+  - [ ] 빌드 통과
+
+### Phase 2: Provider 전환 강화
+
+#### T4. 🔄 Provider 전환 확인 모달
+- **목표**: 실수 방지 — "정말 전환하시겠습니까?" 확인
+- **파일**: `packages/web/src/components/ProviderSwitch.tsx`
+- **명세**:
+  - 전환 버튼 탭 → 확인 모달
+  - 현재 provider + 전환 대상 표시
+  - "현재 세션은 종료됩니다" 경고
+- **완료 기준**:
+  - [ ] 모달 UI
+  - [ ] 확인/취소 동작
+  - [ ] 빌드 통과
+
+#### T5. 📊 서버 연결 상태 대시보드 개선
+- **목표**: 서버 선택 화면에서 각 서버의 온라인 상태 표시
+- **파일**: `packages/web/src/components/ServerSelect.tsx`
+- **명세**:
+  - 서버 목록 렌더 시 `/health` 핑 → 온라인/오프라인 표시
+  - 마지막 접속 서버 자동 선택 + 연결 시도
+- **완료 기준**:
+  - [ ] 온라인/오프라인 인디케이터 (🟢/🔴)
+  - [ ] 빌드 통과
+
+---
+
+## 실행 순서
 
 ```
-[T1: 선행 태스크] (Worker A)
-    ├──→ [T2: 후행 A] (Worker A)  blocked-by: T1
-    └──→ [T3: 후행 B] (Worker B)  blocked-by: T1  ← 병렬 가능
-              ↓
-         [T4: 통합] (Leader)       blocked-by: T2, T3
-```
-
----
-
-## 직렬 처리 블록
-
-<!-- 파일 소유권이 겹치거나 의존성이 있는 태스크 -->
-
-1. Worker A가 `[파일명]` 수정 완료 → CURRENT.md 갱신
-2. Worker B가 CURRENT.md 확인 후 `[파일명]` 기반 작업 착수
-
----
-
-## ClawTeam 등록 스크립트 (선택)
-
-```bash
-# 팀 생성
-clawteam team spawn-team {team-name} -n leader
-
-# 태스크 등록
-T1=$(clawteam --json task create {team-name} "[T1 설명]" -o worker-a | jq -r '.id')
-T2=$(clawteam --json task create {team-name} "[T2 설명]" -o worker-a --blocked-by $T1 | jq -r '.id')
-T3=$(clawteam --json task create {team-name} "[T3 설명]" -o worker-b --blocked-by $T1 | jq -r '.id')
-clawteam task create {team-name} "[T4 통합]" -o leader --blocked-by $T2,$T3
-
-# 워커 스폰
-clawteam spawn --team {team-name} --agent-name worker-a --task "[T1 설명 + 기술 명세]"
-clawteam spawn --team {team-name} --agent-name worker-b --task "[T3 설명 + 기술 명세]"
-
-# 모니터링
-clawteam board attach {team-name}
+T1 (재연결) ─ 즉시 시작, 가장 중요
+    ↓
+T2 (세션 목록) ─ T1 완료 후 (attach 로직 공유)
+    ↓
+T3 (모바일 UX) ─ T2 완료 후 (UI 통합)
+    ↓
+T4 (전환 모달) + T5 (서버 상태) ─ 병렬 가능
 ```
 
 ---
 
 ## 시작 조건
 
-- **Worker A** 첫 태스크: [태스크명] — 즉시 시작 가능
-- **Worker B** 첫 태스크: [태스크명] — [즉시 / T1 완료 후] 시작
-- **병렬 시작 가능**: Yes / No
-
----
-
-## 레트로스펙티브 (완료 후 기록)
-
-**잘 된 것**:
--
-
-**개선점**:
--
-
-**다음 번에 바꿀 것**:
--
+- **T1**: 즉시 시작 가능 — `useRelay.ts` 수정
+- **빌드 검증**: 각 태스크 완료 후 `bun run build`

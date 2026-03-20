@@ -1,4 +1,4 @@
-export type ProviderName = 'claude' | 'gemini'
+export type ProviderName = 'claude' | 'gemini' | 'shell'
 
 export interface Provider {
   name: ProviderName
@@ -15,6 +15,11 @@ export const providers: Record<ProviderName, Provider> = {
   gemini: {
     name: 'gemini',
     command: 'gemini',
+    args: [],
+  },
+  shell: {
+    name: 'shell',
+    command: '/bin/zsh',
     args: [],
   },
 }

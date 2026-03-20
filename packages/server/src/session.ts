@@ -55,12 +55,34 @@ export function createSession(provider: ProviderName, cwd: string): Session {
   const { command, args } = providers[provider]
   const id = crypto.randomUUID()
 
+  // Ensure a robust PATH for the child process
+  const binPath = join(process.cwd(), 'bin')
+  const userPath = [
+    binPath, // Ensure 'rc' command is available
+    '/Users/noir/.bun/bin',
+    '/Users/noir/.nvm/versions/node/v24.13.0/bin',
+    '/opt/homebrew/bin',
+    '/usr/local/bin',
+    '/usr/bin',
+    '/bin',
+    '/usr/sbin',
+    '/sbin',
+  ].join(':')
+
+  const env = { 
+    ...process.env, 
+    PATH: userPath + (process.env.PATH ? `:${process.env.PATH}` : ''),
+    TERM: 'xterm-256color',
+    COLORTERM: 'truecolor',
+    SESSION_ID: id, // For handover tracking
+  }
+
   const ptyProcess = pty.spawn(command, args, {
     name: 'xterm-256color',
     cols: 80,
     rows: 24,
     cwd,
-    env: process.env as Record<string, string>,
+    env,
   })
 
   const session: Session = { id, provider, cwd, pty: ptyProcess, createdAt: new Date() }

@@ -21,8 +21,12 @@ export default defineConfig({
       },
     }),
   ],
+  build: {
+    target: 'es2015',
+  },
   server: {
     host: '0.0.0.0',
-    port: 5173,
+    port: 5188,
+    allowedHosts: true, // Allow MagicDNS access
   },
 })

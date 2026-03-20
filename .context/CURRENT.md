@@ -47,28 +47,26 @@ packages/
 ---
 
 ## Last Completions
-- **멀티 디바이스 지원** (2026-03-20)
-  - 서버: Tailscale IP(100.x.x.x) 우선 감지, MACHINE_LABEL 환경변수
-  - 서버: /api/info + /api/sessions 엔드포인트, attach_session 재연결
-  - 서버: .session-state.json으로 세션 메타 영속
-  - 웹: ServerSelect UI — 여러 서버 저장/전환 (Mac 집 / Windows 회사)
-  - 웹: useServerConfig — localStorage 영속, 마지막 서버 기억
-  - 빌드 통과 + GitHub push
-- **빌드 환경 완성** (2026-03-20)
-  - bun install, tsconfig.json, tailwind.config.js, PWA 아이콘, .gitignore
+- **T3: 모바일 터미널 UX 개선** (2026-03-21)
+  - Safe area inset 적용 및 100dvh 대응
+  - 플로팅 글래스모피즘 줌 컨트롤 추가
+  - ResizeObserver 보정 및 지연 로딩 처리
+- **T4: Provider 전환 확인 모달 구현** (2026-03-21)
+  - 의도치 않은 전환 방지를 위한 디자인된 모달 추가
+  - 전환 시 세션 재생성 안내 문구 포함
+- **T5: 인프라 노드 Health Check 구현** (2026-03-21)
+  - `/health` 엔드포인트 자동 폴링 (10s 주기)
+  - 🟢/🔴/🟡 상태 인디케이터 및 애니메이션 적용
+- **T1: WebSocket 자동 재연결 구현** (2026-03-20)
+- **T2: 세션 목록 & 재연결 UI 구현** (2026-03-20)
 
 ---
 
 ## Next Tasks
 
-1. [x] bun install + 빌드 통과 ✅
-2. [x] Tailwind config + PWA 아이콘 ✅
-3. [x] QR 코드 + Tailscale IP 감지 ✅
-4. [x] 멀티 디바이스 — ServerSelect UI + useServerConfig ✅
-5. [ ] **Tailscale 설치 후 iPhone 실 접속 테스트** ← 다음
-6. [ ] Provider 전환 E2E 테스트 (Claude → Gemini)
-7. [ ] Windows PC에서 서버 실행 테스트 (`bun run dev`)
-8. [ ] 세션 재연결 UI — 이전 세션 목록 표시 + attach
+1. [ ] **Tailscale 실 접속 테스트** — iPhone Safari 연동 확인 (사용자 환경 필요)
+2. [ ] **Documentation Sync** — ARCHITECTURE.md 상세 시퀀스 다이어그램 업데이트
+3. [ ] **Server Dashboard 확장** — CPU/Memory 메트릭 실시간 시각화
 
 ---
 

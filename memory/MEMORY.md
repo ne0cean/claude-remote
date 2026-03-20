@@ -15,16 +15,17 @@
 - `packages/server/src/session.ts` — PTY 세션 생성/전환/종료
 - `packages/server/src/providers/index.ts` — Claude/Gemini provider 정의
 - `packages/web/src/App.tsx` — 메인 UI
-- `packages/web/src/hooks/useRelay.ts` — WebSocket 연결 훅
-- `packages/web/src/components/ProviderSwitch.tsx` — provider 전환 UI
-- `packages/web/src/components/Terminal.tsx` — xterm.js 터미널
+- `packages/web/src/components/SessionList.tsx` — 활성 세션 목록 & attach UI
+- `packages/web/src/hooks/useRelay.ts` — WebSocket 연결 & 자동 재연결(Exponential Backoff)
 - `docs/ARCHITECTURE.md` — 시스템 설계 상세
+- `.context/GEMINI_TASKS.md` — 태스크 배분 (Gemini vs Opus)
 
 ## Architecture
 - tiann/hapi 구조 참조 (Claude + Gemini dual support)
-- Mac relay server → iPhone PWA 패턴
-- provider 전환: 기존 PTY kill → 새 PTY spawn (동일 CWD 유지)
-- 빌드: `bun install` → `bun run server` + `bun run web`
+- Mac relay server → iPhone PWA 패턴 (WSS over Tailscale)
+- **재연결 프로토콜**: 서버측 세션 영속 + 클라이언트측 자동 재부착 (attach_session)
+- **provider 전환**: 기존 PTY kill → 새 PTY spawn (동일 CWD 유지)
+- 빌드: `bun install` → `bun run build` → `bun run dev`
 
 ---
 

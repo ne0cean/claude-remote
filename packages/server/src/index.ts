@@ -85,29 +85,81 @@ app.post('/api/config/github-token', async (c) => {
   return c.json({ ok: true })
 })
 
-// GitHub Repos (Real API with private repo support)
+// GitHub Repos (Real API with public + private repo support + 5min cache + pagination)
+let repoCache: { data: any[]; timestamp: number; hasToken: boolean } | null = null
+const REPO_CACHE_TTL = 5 * 60 * 1000 // 5 minutes
+
+async function fetchAllGithubRepos(token: string | undefined): Promise<{ repos: any[]; error?: string }> {
+  const headers: Record<string, string> = {
+    'User-Agent': 'claude-remote',
+    Accept: 'application/vnd.github+json',
+  }
+  if (token) headers.Authorization = `Bearer ${token}`
+
+  const allRepos: any[] = []
+  let page = 1
+  const perPage = 100
+
+  while (true) {
+    const url = token
+      ? `https://api.github.com/user/repos?type=owner&per_page=${perPage}&sort=updated&page=${page}`
+      : null
+
+    if (!url) break
+
+    const res = await fetch(url, { headers })
+    if (!res.ok) {
+      const text = await res.text()
+      return { repos: [], error: `GitHub API error: ${res.status} ${text}` }
+    }
+
+    const batch = await res.json() as any[]
+    allRepos.push(...batch)
+
+    if (batch.length < perPage) break
+    page++
+    if (page > 10) break // safety limit: max 1000 repos
+  }
+
+  return { repos: allRepos }
+}
+
 app.get('/api/github/repos', async (c) => {
   const token = process.env.GITHUB_TOKEN
-  if (!token) {
-    return c.json({ error: 'GITHUB_TOKEN not configured', repos: [] }, 200)
+  const username = c.req.query('username')
+
+  if (!token && !username) {
+    return c.json({ error: 'GITHUB_TOKEN not configured. Set a token or provide ?username= for public repos.', repos: [] }, 200)
+  }
+
+  // Return cache if fresh and same auth state
+  if (repoCache && Date.now() - repoCache.timestamp < REPO_CACHE_TTL && repoCache.hasToken === !!token) {
+    return c.json(repoCache.data)
   }
 
   let ghRepos: any[]
-  try {
-    const res = await fetch('https://api.github.com/user/repos?type=all&per_page=100&sort=updated', {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'User-Agent': 'claude-remote',
-        Accept: 'application/vnd.github+json',
-      },
-    })
-    if (!res.ok) {
-      const text = await res.text()
-      return c.json({ error: `GitHub API error: ${res.status} ${text}`, repos: [] }, 200)
+
+  if (token) {
+    // Authenticated: fetch all owned repos (public + private) with pagination
+    const result = await fetchAllGithubRepos(token)
+    if (result.error) return c.json({ error: result.error, repos: [] }, 200)
+    ghRepos = result.repos
+  } else if (username) {
+    // Unauthenticated: fetch public repos only by username
+    try {
+      const res = await fetch(`https://api.github.com/users/${encodeURIComponent(username)}/repos?per_page=100&sort=updated`, {
+        headers: { 'User-Agent': 'claude-remote', Accept: 'application/vnd.github+json' },
+      })
+      if (!res.ok) {
+        const text = await res.text()
+        return c.json({ error: `GitHub API error: ${res.status} ${text}`, repos: [] }, 200)
+      }
+      ghRepos = await res.json() as any[]
+    } catch (err: any) {
+      return c.json({ error: `Fetch failed: ${err?.message ?? String(err)}`, repos: [] }, 200)
     }
-    ghRepos = await res.json() as any[]
-  } catch (err: any) {
-    return c.json({ error: `Fetch failed: ${err?.message ?? String(err)}`, repos: [] }, 200)
+  } else {
+    return c.json({ error: 'No auth method available', repos: [] }, 200)
   }
 
   const home = process.env.HOME ?? ''
@@ -135,6 +187,7 @@ app.get('/api/github/repos', async (c) => {
     }
   })
 
+  repoCache = { data: repos, timestamp: Date.now(), hasToken: !!token }
   return c.json(repos)
 })
 

@@ -42,6 +42,7 @@ export default function App() {
   const [githubTokenError, setGithubTokenError] = useState<string | null>(null)
   const [githubTokenSaving, setGithubTokenSaving] = useState(false)
   const [githubNeedsToken, setGithubNeedsToken] = useState(false)
+  const [githubLoading, setGithubLoading] = useState(false)
 
   const { servers, lastServer, addServer, removeServer, selectServer } = useServerConfig()
 
@@ -123,6 +124,7 @@ export default function App() {
   const handleFetchRepos = async () => {
     setScreen('github-browser')
     setGithubNeedsToken(false)
+    setGithubLoading(true)
     if (!activeServer) return
     try {
       const serverHttp = activeServer.wsUrl.replace(/^ws(s?):\/\//, 'http$1://')
@@ -136,6 +138,8 @@ export default function App() {
       }
     } catch (e) {
       console.error('GitHub access failed', e)
+    } finally {
+      setGithubLoading(false)
     }
   }
 
@@ -324,9 +328,19 @@ export default function App() {
         </div>
       ) : (
         <>
-          {repos.length === 0 && (
+          {githubLoading && (
+            <div className="flex flex-col gap-3">
+              {[1,2,3,4,5].map(i => (
+                <div key={i} className="glass-card p-4 border-white/5 animate-pulse">
+                  <div className="h-4 bg-white/10 rounded w-1/3 mb-2" />
+                  <div className="h-3 bg-white/5 rounded w-2/3" />
+                </div>
+              ))}
+            </div>
+          )}
+          {!githubLoading && repos.length === 0 && (
             <div className="text-gray-500 text-sm text-center py-8">
-              레포를 불러오는 중...
+              레포가 없습니다
             </div>
           )}
           <div className="flex flex-col gap-3 overflow-y-auto">

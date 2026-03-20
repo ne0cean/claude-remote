@@ -9,7 +9,7 @@
 iPhone에서 Claude Code + Gemini CLI 원격 조작 PWA. Claude 토큰 소진 시 Gemini로 전환.
 
 ## Status
-**아키텍처 설계 완료 / 스캐폴딩 완료 / 구현 대기**
+**빌드 완료 / 서버+웹 실행 중 / iPhone 접속 테스트 진행**
 
 ---
 
@@ -39,6 +39,11 @@ packages/
 ---
 
 ## Last Completions
+- **빌드 환경 완성** (2026-03-20)
+  - bun install (898 패키지), tsconfig.json, tailwind.config.js, vite-env.d.ts
+  - PWA 아이콘 생성 (192/512), .gitignore
+  - 서버(3001) + 웹(5173) 실행 확인
+  - GitHub push 완료
 - **아키텍처 설계** (2026-03-20)
   - tiann/hapi 기반 구조 확정 (Claude + Gemini dual support)
   - docs/ARCHITECTURE.md, docs/PRD.md 작성
@@ -48,11 +53,11 @@ packages/
 
 ## Next Tasks
 
-1. [ ] `bun install` 후 서버/웹 실행 테스트
-2. [ ] Tailscale IP 환경에서 iPhone 접속 테스트
-3. [ ] Provider 전환 E2E 테스트 (Claude → Gemini)
-4. [ ] Tailwind 설정 완성 (tailwind.config.js 추가)
-5. [ ] PWA 아이콘 이미지 추가 (icon-192.png, icon-512.png)
+1. [x] `bun install` 후 서버/웹 실행 테스트 ✅
+2. [x] Tailwind config + PWA 아이콘 추가 ✅
+3. [ ] Tailscale IP 환경에서 iPhone 접속 테스트
+4. [ ] Provider 전환 E2E 테스트 (Claude → Gemini)
+5. [ ] QR 코드 연결 (서버 시작 시 터미널에 표시)
 
 ---
 

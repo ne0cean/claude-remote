@@ -3,28 +3,56 @@ import { Terminal as XTerm } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
 import '@xterm/xterm/css/xterm.css'
 
+export interface QuickCommand {
+  label: string
+  cmd?: string
+  action?: () => void
+  variant?: 'default' | 'danger' | 'accent'
+}
+
 interface Props {
   onInput: (data: string) => void
   onResize: (cols: number, rows: number) => void
   termRef: React.MutableRefObject<XTerm | null>
+  quickCommands?: QuickCommand[]
 }
 
-export function Terminal({ onInput, onResize, termRef }: Props) {
+export function Terminal({ onInput, onResize, termRef, quickCommands }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
+  const inputRef = useRef<HTMLInputElement | null>(null)
   const [fontSize, setFontSize] = useState(13)
+  const [inputValue, setInputValue] = useState('')
 
-  // Explicit focus helper for mobile gestures
+  // Focus the input bar instead of xterm directly (iOS keyboard friendly)
   const handleFocus = useCallback(() => {
-    if (termRef.current) {
-      termRef.current.focus()
+    inputRef.current?.focus()
+  }, [])
+
+  const handleSend = useCallback(() => {
+    if (!inputValue) return
+    onInput(inputValue + '\r')
+    setInputValue('')
+  }, [inputValue, onInput])
+
+  const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      handleSend()
     }
-  }, [termRef])
+  }, [handleSend])
+
+  const handleQuickCommand = useCallback((qc: QuickCommand) => {
+    if (qc.action) {
+      qc.action()
+    } else if (qc.cmd) {
+      onInput(qc.cmd)
+    }
+  }, [onInput])
 
   useEffect(() => {
     if (!containerRef.current) return
 
     const term = new XTerm({
-      theme: { 
+      theme: {
         background: '#0d1117',
         foreground: '#e6edf3',
         cursor: '#14b8a6',
@@ -36,18 +64,17 @@ export function Terminal({ onInput, onResize, termRef }: Props) {
       allowProposedApi: true,
       scrollback: 5000,
     })
-    
+
     const fitAddon = new FitAddon()
     term.loadAddon(fitAddon)
     term.open(containerRef.current)
-    
-    // Initial fit with a small delay for DOM stability
+
     const timeout = setTimeout(() => {
       fitAddon.fit()
       onResize(term.cols, term.rows)
-      term.focus() // Autonatic focus once opened
+      term.focus()
     }, 150)
-    
+
     termRef.current = term
     term.onData(onInput)
 
@@ -68,32 +95,89 @@ export function Terminal({ onInput, onResize, termRef }: Props) {
     }
   }, [fontSize, onInput, onResize, termRef])
 
+  const variantClass = (variant?: QuickCommand['variant']) => {
+    if (variant === 'danger') return 'bg-rose-500/20 text-rose-400 border-rose-500/30'
+    if (variant === 'accent') return 'bg-teal-500/20 text-teal-400 border-teal-500/30'
+    return 'bg-white/5 text-gray-400 border-white/10'
+  }
+
   return (
-    <div 
-      className="flex-1 relative flex flex-col min-h-0 bg-[#0d1117] overflow-hidden"
+    <div
+      className="flex-1 flex flex-col min-h-0 bg-[#0d1117] overflow-hidden"
       onClick={handleFocus}
     >
-      {/* Container with safe area padding for mobile */}
-      <div 
-        ref={containerRef} 
-        className="flex-1 w-full pb-[env(safe-area-inset-bottom)] px-[env(safe-area-inset-left)]" 
+      {/* xterm container */}
+      <div
+        ref={containerRef}
+        className="flex-1 w-full px-[env(safe-area-inset-left)] overflow-hidden"
+        style={{ position: 'relative' }}
       />
-      
-      {/* Premium Zoom controls - Floating Glassmorphism */}
-      <div className="absolute right-6 bottom-[calc(env(safe-area-inset-bottom)+1.5rem)] flex gap-2 no-select">
-        <div className="flex bg-black/40 backdrop-blur-md border border-white/10 rounded-2xl p-1 shadow-2xl opacity-40 hover:opacity-100 transition-all duration-300 transform scale-90 sm:scale-100 active:scale-110">
-          <button 
-            onClick={(e) => { e.stopPropagation(); setFontSize(f => Math.max(9, f - 1)) }}
-            className="w-10 h-10 flex items-center justify-center text-slate-400 hover:text-white hover:bg-white/5 rounded-xl transition-colors font-bold text-lg"
+
+      {/* Mobile input bar */}
+      <div
+        className="border-t border-white/5 bg-[#0d1117] px-3 py-2 flex flex-col gap-2 pb-[calc(env(safe-area-inset-bottom)+0.5rem)] relative z-10"
+        onClick={(e) => e.stopPropagation()}
+        onPointerDown={(e) => e.stopPropagation()}
+        onTouchStart={(e) => e.stopPropagation()}
+      >
+        {/* Quick command chips */}
+        {quickCommands && quickCommands.length > 0 && (
+          <div className="flex flex-wrap gap-1.5">
+            {quickCommands.map((qc, i) => (
+              <button
+                key={i}
+                onClick={(e) => { e.stopPropagation(); handleQuickCommand(qc) }}
+                onPointerDown={(e) => { e.stopPropagation(); e.preventDefault(); handleQuickCommand(qc) }}
+                className={`text-xs font-bold px-3 py-1 rounded-full border transition-all active:scale-95 ${variantClass(qc.variant)}`}
+              >
+                {qc.label}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* Input row */}
+        <div className="flex items-center gap-2">
+          <input
+            ref={inputRef}
+            type="text"
+            value={inputValue}
+            onChange={(e) => { e.stopPropagation(); setInputValue(e.target.value) }}
+            onKeyDown={handleKeyDown}
+            placeholder="type a command..."
+            className="flex-1 bg-transparent text-white text-sm placeholder-gray-600 outline-none"
+            autoComplete="off"
+            autoCorrect="off"
+            autoCapitalize="off"
+            spellCheck={false}
+          />
+
+          {/* Zoom controls */}
+          <div className="flex items-center bg-black/40 border border-white/10 rounded-xl overflow-hidden">
+            <button
+              onClick={(e) => { e.stopPropagation(); setFontSize(f => Math.max(9, f - 1)) }}
+              onPointerDown={(e) => { e.stopPropagation(); e.preventDefault(); setFontSize(f => Math.max(9, f - 1)) }}
+              className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-white hover:bg-white/5 transition-colors font-bold text-xs"
+            >
+              A-
+            </button>
+            <div className="w-[1px] bg-white/10 self-stretch" />
+            <button
+              onClick={(e) => { e.stopPropagation(); setFontSize(f => Math.min(24, f + 1)) }}
+              onPointerDown={(e) => { e.stopPropagation(); e.preventDefault(); setFontSize(f => Math.min(24, f + 1)) }}
+              className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-white hover:bg-white/5 transition-colors font-bold text-xs"
+            >
+              A+
+            </button>
+          </div>
+
+          {/* Send button */}
+          <button
+            onClick={(e) => { e.stopPropagation(); handleSend() }}
+            onPointerDown={(e) => { e.stopPropagation(); e.preventDefault(); handleSend() }}
+            className="w-8 h-8 flex items-center justify-center bg-teal-500/20 text-teal-400 border border-teal-500/30 rounded-xl text-sm font-bold transition-all active:scale-95 hover:bg-teal-500/30"
           >
-            A-
-          </button>
-          <div className="w-[1px] bg-white/10 my-2" />
-          <button 
-            onClick={(e) => { e.stopPropagation(); setFontSize(f => Math.min(24, f + 1)) }}
-            className="w-10 h-10 flex items-center justify-center text-slate-400 hover:text-white hover:bg-white/5 rounded-xl transition-colors font-bold text-lg"
-          >
-            A+
+            ↵
           </button>
         </div>
       </div>

@@ -11,3 +11,22 @@
 **거버넌스**: coding-safety, sync-and-commit, turbo-auto 규칙 설치
 
 ---
+
+## [2026-03-20] 구현 세션 1
+
+**완료**:
+- A-Team init.sh 버그 수정 (스크립트 이름 오류 + 대상 디렉토리 인자 지원)
+- 빌드 환경 구축: bun 설치, tsconfig, tailwind.config.js, PWA 아이콘, vite-env.d.ts
+- 서버: Tailscale IP 우선 감지, QR 코드, MACHINE_LABEL, /api/info, session 파일 저장
+- 웹: ServerSelect 컴포넌트, useServerConfig 훅 — 멀티 서버 저장/전환 UI
+- 서버/웹 빌드 통과, GitHub push
+
+**이슈**:
+- A-Team 로컬 버전 구버전 → git pull 해결 (init.sh 이미 존재)
+- bun PATH 미등록 → ~/.bun/bin/bun 절대경로 우회
+- tsconfig 없어 tsc 도움말 출력 → tsconfig.json 생성으로 해결
+- node-pty bun build 타겟 미지정 → --target bun 추가
+
+**다음**: Tailscale 설치 후 iPhone 실 접속 테스트, Windows 서버 실행 테스트
+
+---

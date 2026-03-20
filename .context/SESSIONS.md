@@ -30,3 +30,14 @@
 **다음**: Tailscale 설치 후 iPhone 실 접속 테스트, Windows 서버 실행 테스트
 
 ---
+
+## [2026-03-21] 글로벌 슬래시 명령어 연동
+
+**완료**:
+- `/todo`, `/prjt` 글로벌 명령어 위치(`~/.claude/commands/`) 확인 및 진단
+- 프로젝트별 `.claude/commands/`가 있을 때 글로벌 명령어 미인식 문제 파악
+- A-Team `todo.md`, `prjt.md` → 글로벌 파일 심볼릭 링크로 교체
+- `~/.claude/settings.json` SessionStart cp 훅 제거 (심볼릭 링크로 대체)
+
+**이슈**: 없음
+**빌드**: ✅ (설정 파일 변경만, 빌드 불필요)

@@ -46,6 +46,10 @@ packages/
 ---
 
 ## Last Completions
+- **글로벌 슬래시 명령어 연동** (2026-03-21)
+  - `/todo`, `/prjt` → `~/.claude/commands/`에 글로벌 셋팅 확인
+  - A-Team `.claude/commands/todo.md`, `prjt.md` → 심볼릭 링크로 교체
+  - `~/.claude/settings.json` SessionStart 훅 정리
 - **모바일 입력바 + QuickCommand** (2026-03-21)
   - Terminal.tsx: chips(/vibe, /end, ← PC) + text input + A-/A+ + ↵
   - iOS 키보드 포커스 수정 (input 요소 직접 포커스)

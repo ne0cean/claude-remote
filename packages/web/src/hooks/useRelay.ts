@@ -3,7 +3,7 @@ import { useEffect, useRef, useState, useCallback } from 'react'
 type ServerMessage =
   | { type: 'output'; data: string }
   | { type: 'provider_switched'; provider: string; sessionId: string }
-  | { type: 'session_created'; sessionId: string; provider: string }
+  | { type: 'session_created'; sessionId: string; provider: string; cwd: string }
   | { type: 'session_attached'; sessionId: string; provider: string; cwd: string }
   | { type: 'handover_detected'; handover: { path: string; label: string; timestamp: number; sessionId?: string } }
   | { type: 'handover_cleared' }
@@ -15,14 +15,16 @@ interface UseRelayOptions {
   onProviderSwitch: (provider: string) => void
   onHandover?: (handover: { path: string; label: string; timestamp: number; sessionId?: string }) => void
   onHandoverClear?: () => void
+  onSessionCwd?: (cwd: string) => void
 }
 
-export function useRelay({ url, onOutput, onProviderSwitch, onHandover, onHandoverClear }: UseRelayOptions) {
+export function useRelay({ url, onOutput, onProviderSwitch, onHandover, onHandoverClear, onSessionCwd }: UseRelayOptions) {
   const ws = useRef<WebSocket | null>(null)
   const reconnectTimer = useRef<number | null>(null)
   const [connected, setConnected] = useState(false)
   const [reconnecting, setReconnecting] = useState(false)
   const [sessionId, setSessionId] = useState<string | null>(null)
+  const [sessionCwd, setSessionCwd] = useState<string | null>(null)
   const reconnectAttempts = useRef(0)
 
   // Use refs for callbacks to avoid re-connecting on every change
@@ -30,6 +32,7 @@ export function useRelay({ url, onOutput, onProviderSwitch, onHandover, onHandov
   const onProviderSwitchRef = useRef(onProviderSwitch)
   const onHandoverRef = useRef(onHandover)
   const onHandoverClearRef = useRef(onHandoverClear)
+  const onSessionCwdRef = useRef(onSessionCwd)
   const sessionIdRef = useRef<string | null>(null)
 
   useEffect(() => {
@@ -37,8 +40,9 @@ export function useRelay({ url, onOutput, onProviderSwitch, onHandover, onHandov
     onProviderSwitchRef.current = onProviderSwitch
     onHandoverRef.current = onHandover
     onHandoverClearRef.current = onHandoverClear
+    onSessionCwdRef.current = onSessionCwd
     sessionIdRef.current = sessionId
-  }, [onOutput, onProviderSwitch, onHandover, onHandoverClear, sessionId])
+  }, [onOutput, onProviderSwitch, onHandover, onHandoverClear, onSessionCwd, sessionId])
 
   const connect = useCallback(() => {
     if (!url) return
@@ -68,8 +72,10 @@ export function useRelay({ url, onOutput, onProviderSwitch, onHandover, onHandov
           onOutputRef.current(msg.data)
         } else if (msg.type === 'session_created') {
           setSessionId(msg.sessionId)
+          if (msg.cwd) { setSessionCwd(msg.cwd); onSessionCwdRef.current?.(msg.cwd) }
         } else if (msg.type === 'session_attached') {
           setSessionId(msg.sessionId)
+          if (msg.cwd) { setSessionCwd(msg.cwd); onSessionCwdRef.current?.(msg.cwd) }
           onProviderSwitchRef.current(msg.provider)
         } else if (msg.type === 'provider_switched') {
           setSessionId(msg.sessionId)
@@ -144,5 +150,5 @@ export function useRelay({ url, onOutput, onProviderSwitch, onHandover, onHandov
     send({ type: 'attach_session', sessionId })
   }, [send])
 
-  return { connected, reconnecting, sessionId, newSession, attachSession, writeInput, resize, switchProvider }
+  return { connected, reconnecting, sessionId, sessionCwd, newSession, attachSession, writeInput, resize, switchProvider }
 }

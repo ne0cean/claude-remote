@@ -45,6 +45,9 @@ export default function App() {
 
   const { servers, lastServer, addServer, removeServer, selectServer } = useServerConfig()
 
+  const [sessionCwd, setSessionCwd] = useState<string | null>(null)
+  const [tokenLimitHit, setTokenLimitHit] = useState(false)
+
   const {
     newSession,
     writeInput,
@@ -54,7 +57,19 @@ export default function App() {
     attachSession
   } = useRelay({
     url: activeServer?.wsUrl ?? '',
-    onOutput: (data) => termRef.current?.write(data),
+    onOutput: useCallback((data: string) => {
+      termRef.current?.write(data)
+      // Detect Claude Code token/rate limit messages
+      if (
+        data.includes('Claude usage limit') ||
+        data.includes('rate limit') ||
+        data.includes('API error: 429') ||
+        data.includes('overloaded_error') ||
+        data.includes('exceeded your current quota')
+      ) {
+        setTokenLimitHit(true)
+      }
+    }, []),
     onProviderSwitch: (p) => setProvider(p as 'claude' | 'gemini' | 'shell'),
     onHandover: useCallback((h: HandoverState) => {
       setHandover(h)
@@ -62,6 +77,10 @@ export default function App() {
     }, []),
     onHandoverClear: useCallback(() => {
       setHandover(null)
+    }, []),
+    onSessionCwd: useCallback((cwd: string) => {
+      setSessionCwd(cwd)
+      setTokenLimitHit(false)
     }, [])
   })
 
@@ -154,17 +173,38 @@ export default function App() {
     }, 1500)
   }
 
-  // Quick commands per context
+  const handleOpenAntigravity = useCallback(async () => {
+    if (!activeServer || !sessionCwd) return
+    const serverHttp = activeServer.wsUrl.replace(/^ws(s?):\/\//, 'http$1://')
+    try {
+      await fetch(`${serverHttp}/api/open-in-antigravity`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ path: sessionCwd })
+      })
+    } catch (e) {
+      console.error('Failed to open Antigravity', e)
+    }
+    setTokenLimitHit(false)
+  }, [activeServer, sessionCwd])
+
+  // Quick commands per context — include AG button when sessionCwd available
+  const agCommand: QuickCommand | null = sessionCwd
+    ? { label: '→ AG', action: handleOpenAntigravity, variant: 'accent' }
+    : null
+
   const rcQuickCommands: QuickCommand[] = [
     { label: '/vibe', cmd: '/vibe\r', variant: 'accent' },
     { label: '/end', cmd: '/end\r', variant: 'default' },
     { label: '← PC', action: async () => { await handleReturnToPC(); setScreen('home') }, variant: 'danger' },
+    ...(agCommand ? [agCommand] : []),
   ]
 
   const githubQuickCommands: QuickCommand[] = [
     { label: '/vibe', cmd: '/vibe\r', variant: 'accent' },
     { label: '/end', cmd: '/end\r', variant: 'default' },
     { label: '← HOME', action: () => setScreen('home'), variant: 'danger' },
+    ...(agCommand ? [agCommand] : []),
   ]
 
   const activeQuickCommands =
@@ -340,6 +380,9 @@ export default function App() {
             onInput={writeInput}
             onResize={resize}
             quickCommands={activeQuickCommands}
+            tokenLimitHit={tokenLimitHit}
+            onOpenAntigravity={sessionCwd ? handleOpenAntigravity : undefined}
+            onDismissTokenLimit={() => setTokenLimitHit(false)}
           />
         </React.Fragment>
       )}

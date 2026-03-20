@@ -41,3 +41,17 @@
 
 **이슈**: 없음
 **빌드**: ✅ (설정 파일 변경만, 빌드 불필요)
+
+---
+
+## [2026-03-21] 훅 버그 수정 + 레포 현황 정정
+
+**완료**:
+- `pre-bash.sh` macOS bash v3 호환 버그 수정 — `declare -A` 미지원으로 `gh api ne0cean/...` 명령 전체 차단되던 문제 해결
+- `/todo` 스킬 안전 강화 — `Write` 툴 덮어쓰기 방지, `Bash echo >>` append 방식 명시
+- `/prjt` 실행 후 7개 레포 CURRENT.md 오류 발견 및 일괄 수정 (A-Team init.sh가 기존 개발 내용 위에 빈 템플릿 덮어쓴 문제)
+  - 실제 개발 완료 레포 4개 정정: VDI-Switcher, HSC_macro, HSC_Clicker_Mobile, auto-login-mydesk, MMS2Clipboard
+  - 기획/실습 레포 2개 정정: AI-lighthaus, desktop-tutorial
+
+**이슈**: `ne0cean` 유저명에 `0`이 포함 → bash v3 버그로 모든 `gh api` 명령 차단
+**빌드**: ✅ (코드 변경 없음, 설정/훅 파일만 수정)

@@ -15,9 +15,12 @@ interface Props {
   onResize: (cols: number, rows: number) => void
   termRef: React.MutableRefObject<XTerm | null>
   quickCommands?: QuickCommand[]
+  tokenLimitHit?: boolean
+  onOpenAntigravity?: () => void
+  onDismissTokenLimit?: () => void
 }
 
-export function Terminal({ onInput, onResize, termRef, quickCommands }: Props) {
+export function Terminal({ onInput, onResize, termRef, quickCommands, tokenLimitHit, onOpenAntigravity, onDismissTokenLimit }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement | null>(null)
   const [fontSize, setFontSize] = useState(13)
@@ -106,6 +109,40 @@ export function Terminal({ onInput, onResize, termRef, quickCommands }: Props) {
       className="flex-1 flex flex-col min-h-0 bg-[#0d1117] overflow-hidden"
       onClick={handleFocus}
     >
+      {/* Token limit banner */}
+      {tokenLimitHit && (
+        <div
+          className="mx-3 mt-2 p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center gap-3 relative z-20"
+          onPointerDown={(e) => e.stopPropagation()}
+          onTouchStart={(e) => e.stopPropagation()}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <span className="text-lg">⚡</span>
+          <div className="flex-1">
+            <p className="text-amber-400 text-xs font-black">Claude 토큰 소진</p>
+            <p className="text-gray-500 text-[10px]">Antigravity로 컨텍스트를 이어받아 계속할 수 있어요</p>
+          </div>
+          <div className="flex gap-2">
+            {onOpenAntigravity && (
+              <button
+                onClick={(e) => { e.stopPropagation(); onOpenAntigravity() }}
+                onPointerDown={(e) => { e.stopPropagation(); e.preventDefault(); onOpenAntigravity() }}
+                className="text-[10px] font-black px-3 py-1.5 rounded-lg bg-amber-500/20 text-amber-400 border border-amber-500/30 active:scale-95 transition-all"
+              >
+                → AG
+              </button>
+            )}
+            <button
+              onClick={(e) => { e.stopPropagation(); onDismissTokenLimit?.() }}
+              onPointerDown={(e) => { e.stopPropagation(); e.preventDefault(); onDismissTokenLimit?.() }}
+              className="text-[10px] font-black px-2 py-1.5 rounded-lg bg-white/5 text-gray-500 border border-white/10 active:scale-95 transition-all"
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* xterm container */}
       <div
         ref={containerRef}

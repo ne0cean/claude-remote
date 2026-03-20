@@ -243,6 +243,33 @@ ${description}
   return c.json({ ok: true, path: projectPath, repoUrl, localCreated: true })
 })
 
+// Open project in Antigravity IDE (Mac)
+app.post('/api/open-in-antigravity', async (c) => {
+  const { path: projectPath } = await c.req.json()
+  if (!projectPath || typeof projectPath !== 'string') {
+    return c.json({ error: 'path required' }, 400)
+  }
+
+  if (platform() !== 'darwin') {
+    return c.json({ error: 'macOS only' }, 400)
+  }
+
+  // Try antigravity CLI, fall back to 'open -a Antigravity'
+  const tryCli = Bun.spawn(['which', 'antigravity'], { stdout: 'pipe', stderr: 'ignore' })
+  await tryCli.exited
+  const cliPath = (await new Response(tryCli.stdout).text()).trim()
+
+  if (cliPath) {
+    Bun.spawn([cliPath, projectPath], { stdout: 'ignore', stderr: 'ignore' })
+    console.log(`[antigravity] opened via CLI: ${projectPath}`)
+  } else {
+    Bun.spawn(['open', '-a', 'Antigravity', projectPath], { stdout: 'ignore', stderr: 'ignore' })
+    console.log(`[antigravity] opened via open -a: ${projectPath}`)
+  }
+
+  return c.json({ ok: true, path: projectPath })
+})
+
 // IP 감지: Tailscale 혹은 로컬 IP를 찾습니다.
 function getAccessIP() {
   const nets = networkInterfaces()

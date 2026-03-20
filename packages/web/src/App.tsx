@@ -203,7 +203,7 @@ export default function App() {
       )}
       {screen === 'dashboard' && activeServer && (
         <Dashboard
-          serverUrl={activeServer.wsUrl.replace('ws://', 'http://')}
+          serverUrl={activeServer.wsUrl.replace(/^ws:\/\//, 'http://').replace(/^wss:\/\//, 'https://')}
           onClose={() => setScreen('home')}
         />
       )}

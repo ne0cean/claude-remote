@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react'
+import { formatUptime } from '../utils'
 
 interface DashboardProps {
   serverUrl: string
@@ -18,11 +19,6 @@ interface Metrics {
   uptime: number
 }
 
-function formatUptime(seconds: number): string {
-  const h = Math.floor(seconds / 3600)
-  const m = Math.floor((seconds % 3600) / 60)
-  return `${h}h ${m}m`
-}
 
 function CpuGauge({ value }: { value: number }) {
   // 0~4 range, cap at 100%

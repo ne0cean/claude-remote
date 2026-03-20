@@ -47,6 +47,10 @@ packages/
 ---
 
 ## Last Completions
+- **vitest 설정** (2026-03-21)
+  - formatUptime, wsUrlToHttp utils.ts 추출 + 테스트 13개
+  - serverConfig storage helpers 테스트
+  - vite.config.ts test 블록 + package.json test 스크립트
 - **T6: Server Dashboard 메트릭** (2026-03-21)
   - /api/metrics 엔드포인트 (CPU loadavg, Memory, uptime, sessions)
   - Dashboard.tsx — CpuGauge 바 + MemoryCircle SVG + StatCard, 5s 폴링
@@ -73,7 +77,6 @@ packages/
 ## Next Tasks
 
 1. [ ] **Tailscale 실 접속 테스트** — iPhone Safari 연동 확인 (사용자 환경 필요)
-2. [ ] **vitest 설정** — 유틸 함수 단위 테스트 스켈레톤
 
 ---
 

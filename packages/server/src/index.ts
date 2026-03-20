@@ -3,7 +3,7 @@ import { cors } from 'hono/cors'
 import { createSession, getSession, switchProvider, destroySession, listSessions } from './session.js'
 import type { ProviderName } from './providers/index.js'
 import qrcode from 'qrcode-terminal'
-import { networkInterfaces, hostname, platform } from 'os'
+import { networkInterfaces, hostname, platform, loadavg, totalmem, freemem, cpus } from 'os'
 
 const app = new Hono()
 const PORT = Number(process.env.PORT ?? 3001)
@@ -17,6 +17,18 @@ const clients = new Set<any>()
 
 // Health + info
 app.get('/health', (c) => c.json({ ok: true }))
+app.get('/api/metrics', (c) => {
+  const [loadAvg1, loadAvg5, loadAvg15] = loadavg()
+  const total = totalmem()
+  const free = freemem()
+  const used = total - free
+  return c.json({
+    cpu: { loadAvg1, loadAvg5, loadAvg15, cores: cpus().length },
+    memory: { total, free, used, usedPercent: Math.round((used / total) * 100) },
+    uptime: process.uptime(),
+    sessions: listSessions().length,
+  })
+})
 app.get('/api/info', (c) =>
   c.json({
     label: MACHINE_LABEL,

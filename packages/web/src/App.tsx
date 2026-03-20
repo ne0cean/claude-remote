@@ -3,11 +3,12 @@ import type { Terminal as XTerm } from '@xterm/xterm'
 import { Terminal } from './components/Terminal'
 import { ProviderSwitch } from './components/ProviderSwitch'
 import { ServerSelect } from './components/ServerSelect'
+import { Dashboard } from './components/Dashboard'
 import { useRelay } from './hooks/useRelay'
 import { useServerConfig } from './hooks/useServerConfig'
 import type { ServerConfig } from './hooks/useServerConfig'
 
-type Screen = 'home' | 'server-select' | 'terminal' | 'github-browser' | 'new-project'
+type Screen = 'home' | 'server-select' | 'terminal' | 'github-browser' | 'new-project' | 'dashboard'
 
 interface HandoverState {
   path: string
@@ -157,7 +158,10 @@ export default function App() {
           <div className={`w-2 h-2 rounded-full ${wsConnected ? 'bg-teal-500' : 'bg-rose-500'}`} />
           <span className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">{activeServer?.label ?? 'Not Connected'}</span>
         </div>
-        <button onClick={() => setScreen('server-select')} className="text-[10px] text-teal-500 font-bold hover:underline">SWITCH NODE</button>
+        <div className="flex items-center gap-3">
+          {activeServer && <button onClick={() => setScreen('dashboard')} className="text-[10px] text-gray-500 font-bold hover:text-teal-500 hover:underline">DASHBOARD</button>}
+          <button onClick={() => setScreen('server-select')} className="text-[10px] text-teal-500 font-bold hover:underline">SWITCH NODE</button>
+        </div>
       </footer>
     </div>
   )
@@ -196,6 +200,12 @@ export default function App() {
           </div>
           <Terminal termRef={termRef} onInput={writeInput} onResize={resize} />
         </React.Fragment>
+      )}
+      {screen === 'dashboard' && activeServer && (
+        <Dashboard
+          serverUrl={activeServer.wsUrl.replace('ws://', 'http://')}
+          onClose={() => setScreen('home')}
+        />
       )}
       {screen === 'new-project' && (
         <div className="flex-1 p-6 flex flex-col gap-6 aurora-bg animate-in items-center justify-center text-center">

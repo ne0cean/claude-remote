@@ -45,10 +45,13 @@ bun run web
 - **Claude Code + Gemini CLI** 원격 조작 (PTY 기반)
 - **세션 자동 재연결**: 네트워크 끊김 시 지수 백오프 적용 자동 복구
 - **세션 목록 & 재부착**: 기존 세션 목록을 불러와 중단 지점에서 재개 (Attach)
-- **iPhone PWA 최적화**: 홈 화면 추가, 모바일 터치 터미널 지원
-- **Provider 전환**: 세션 중 한 번의 탭으로 Claude ↔ Gemini 즉시 전환
-- **멀티 디바이스**: Tailscale IP 자동 감지 및 QR 코드 연결
+- **iPhone PWA 최적화**: 홈 화면 추가, safe area inset, 모바일 터치 터미널 + 플로팅 줌 컨트롤
+- **Provider 전환 모달**: 세션 중 한 번의 탭으로 Claude ↔ Gemini 즉시 전환 (확인 모달 포함)
+- **Health Check**: 서버별 `/health` 자동 폴링 + 🟢/🔴/🟡 상태 인디케이터
+- **Server Dashboard**: CPU Load Average, Memory 사용률, 세션 수, 업타임 실시간 시각화
+- **멀티 디바이스**: Tailscale IP 자동 감지 및 QR 코드 연결 (Mac / Windows / iPhone)
+- **RC Handover**: Mac에서 `rc` 명령으로 프로젝트 컨텍스트를 iPhone으로 즉시 전달
 
 ## 상태
 
-> v1 핵심 코드 구현 완료 — 안정성 및 모바일 UX 고도화 중 (2026-03-20)
+> v1 핵심 구현 + 모바일 UX 고도화 완료 — Tailscale E2E 테스트 대기 중 (2026-03-21)

@@ -47,6 +47,14 @@ packages/
 ---
 
 ## Last Completions
+- **T6: Server Dashboard 메트릭** (2026-03-21)
+  - /api/metrics 엔드포인트 (CPU loadavg, Memory, uptime, sessions)
+  - Dashboard.tsx — CpuGauge 바 + MemoryCircle SVG + StatCard, 5s 폴링
+  - App.tsx 'dashboard' 화면 연결 (홈 footer DASHBOARD 버튼)
+- **Documentation Sync** (2026-03-21)
+  - ARCHITECTURE.md — 재연결/Handover/Dashboard 플로우 + 메시지 타입 업데이트
+  - README.md — 전체 기능 목록 최신화
+  - .env.example 생성
 - **T3: 모바일 터미널 UX 개선** (2026-03-21)
   - Safe area inset 적용 및 100dvh 대응
   - 플로팅 글래스모피즘 줌 컨트롤 추가
@@ -65,8 +73,7 @@ packages/
 ## Next Tasks
 
 1. [ ] **Tailscale 실 접속 테스트** — iPhone Safari 연동 확인 (사용자 환경 필요)
-2. [ ] **Documentation Sync** — ARCHITECTURE.md 상세 시퀀스 다이어그램 업데이트
-3. [ ] **Server Dashboard 확장** — CPU/Memory 메트릭 실시간 시각화
+2. [ ] **vitest 설정** — 유틸 함수 단위 테스트 스켈레톤
 
 ---
 

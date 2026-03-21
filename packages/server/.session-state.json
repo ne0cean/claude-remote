@@ -1,0 +1,14 @@
+[
+  {
+    "id": "70573375-3e1a-4284-94e9-63ad7eebc767",
+    "provider": "claude",
+    "cwd": "MMS2Clipboard",
+    "createdAt": "2026-03-21T06:38:27.085Z"
+  },
+  {
+    "id": "b5635c5b-9bd0-432a-8100-fa6c899aeedd",
+    "provider": "shell",
+    "cwd": "/tmp",
+    "createdAt": "2026-03-21T13:52:01.893Z"
+  }
+]

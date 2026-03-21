@@ -43,6 +43,10 @@ packages/
 ## In Progress Files
 - (없음)
 
+## Session Completions (2026-03-21 Late)
+- **createSession/switchProvider async 호환** — index.ts WebSocket 핸들러 .then() 패턴 적용
+- **docs/ARCHITECTURE.md 업데이트** — PTY Worker, pendingSession, AI 이름 제안 시퀀스 추가
+
 ---
 
 ## Last Completions
@@ -68,8 +72,8 @@ packages/
 1. [ ] **Tailscale 실 접속 테스트** — iPhone Safari 연동 확인
 2. [ ] **GITHUB_TOKEN 권한 수정** — Fine-grained token에 Administration: Read & Write 추가 필요 (현재 403)
 3. [ ] **안티그래비티 모바일 지원** — 별도 프로젝트 (todo 메모 참조)
-4. [ ] **README.md 최종 스펙 업데이트** — reconnection, session list, AI 이름 제안 등 반영
-5. [ ] **docs/ARCHITECTURE.md 업데이트** — Provider 전환 및 재연결 시퀀스 다이어그램
+4. [x] **README.md 최종 스펙 업데이트** — 완료 (b3fff53)
+5. [x] **docs/ARCHITECTURE.md 업데이트** — PTY Worker, pendingSession, AI 이름 제안 시퀀스 추가
 
 ---
 

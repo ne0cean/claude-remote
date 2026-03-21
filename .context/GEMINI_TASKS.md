@@ -4,9 +4,9 @@
 > 최종 갱신: 2026-03-21
 
 ## 📝 문서화 (Documentation)
-- [ ] `README.md` 최종 스펙 및 구조 업데이트 (AI 이름 제안, pendingSession, reconnection 등)
+- [x] `README.md` 최종 스펙 및 구조 업데이트 — **DONE** (b3fff53)
 - [ ] `memory/MEMORY.md` 핵심 파일 및 흐름 최우선 가시화
-- [ ] `docs/ARCHITECTURE.md` Provider 전환 및 재연결 상세 시퀀스 다이어그램 업데이트
+- [x] `docs/ARCHITECTURE.md` PTY Worker + pendingSession + AI 이름 제안 시퀀스 — **DONE**
 
 ## 🎨 스타일 및 단순 UI (CSS/Simple UI)
 - [x] `packages/web/src/components/ServerSelect.tsx`: 서버별 `/health` 상태 표시 (🟢/🔴) — **DONE**

@@ -48,6 +48,7 @@ export default function App() {
 
   const [sessionCwd, setSessionCwd] = useState<string | null>(null)
   const [tokenLimitHit, setTokenLimitHit] = useState(false)
+  const pendingSessionRef = useRef<{ cwd: string; provider: 'claude' | 'gemini' | 'shell'; attachId?: string; autoVibe?: boolean } | null>(null)
 
   const {
     newSession,
@@ -94,15 +95,10 @@ export default function App() {
   const handleStartRC = () => {
     if (!handover || !activeServer) return
     setTerminalContext('rc')
-    if (handover.sessionId) {
-      attachSession(handover.sessionId)
-    } else {
-      newSession(handover.path, provider as 'claude' | 'gemini' | 'shell')
-    }
+    pendingSessionRef.current = handover.sessionId
+      ? { cwd: handover.path, provider: provider as 'claude' | 'gemini' | 'shell', attachId: handover.sessionId, autoVibe: true }
+      : { cwd: handover.path, provider: provider as 'claude' | 'gemini' | 'shell', autoVibe: true }
     setScreen('terminal')
-    setTimeout(() => {
-      writeInput('/vibe\r')
-    }, 1000)
   }
 
   const handleReturnToPC = useCallback(async () => {
@@ -170,11 +166,8 @@ export default function App() {
   const handleOpenRepo = (repo: GithubRepo) => {
     setGithubSessionLabel(repo.name)
     setTerminalContext('github')
-    newSession(repo.localPath || repo.name, 'claude')
+    pendingSessionRef.current = { cwd: repo.localPath || repo.name, provider: 'claude', autoVibe: true }
     setScreen('terminal')
-    setTimeout(() => {
-      writeInput('/vibe\r')
-    }, 1500)
   }
 
   const handleOpenAntigravity = useCallback(async () => {
@@ -216,6 +209,21 @@ export default function App() {
 
   const terminalLabel =
     terminalContext === 'rc' ? (handover?.label || 'RC Session') : (githubSessionLabel || 'Session')
+
+  const handleTerminalReady = useCallback(() => {
+    const pending = pendingSessionRef.current
+    if (!pending) return
+    pendingSessionRef.current = null
+
+    if (pending.attachId) {
+      attachSession(pending.attachId)
+    } else {
+      newSession(pending.cwd, pending.provider)
+    }
+    if (pending.autoVibe) {
+      setTimeout(() => writeInput('/vibe\r'), 1500)
+    }
+  }, [attachSession, newSession, writeInput])
 
   const renderHome = () => (
     <div className="flex-1 p-6 flex flex-col gap-6 aurora-bg animate-in overflow-y-auto">
@@ -397,6 +405,7 @@ export default function App() {
             tokenLimitHit={tokenLimitHit}
             onOpenAntigravity={sessionCwd ? handleOpenAntigravity : undefined}
             onDismissTokenLimit={() => setTokenLimitHit(false)}
+            onReady={handleTerminalReady}
           />
         </React.Fragment>
       )}
@@ -412,9 +421,8 @@ export default function App() {
           onCreated={(path, label) => {
             setGithubSessionLabel(label)
             setTerminalContext('new-project')
-            newSession(path, 'claude')
+            pendingSessionRef.current = { cwd: path, provider: 'claude', autoVibe: true }
             setScreen('terminal')
-            setTimeout(() => writeInput('/vibe\r'), 1500)
           }}
           onCancel={() => setScreen('home')}
         />

@@ -18,9 +18,10 @@ interface Props {
   tokenLimitHit?: boolean
   onOpenAntigravity?: () => void
   onDismissTokenLimit?: () => void
+  onReady?: () => void
 }
 
-export function Terminal({ onInput, onResize, termRef, quickCommands, tokenLimitHit, onOpenAntigravity, onDismissTokenLimit }: Props) {
+export function Terminal({ onInput, onResize, termRef, quickCommands, tokenLimitHit, onOpenAntigravity, onDismissTokenLimit, onReady }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement | null>(null)
   const [fontSize, setFontSize] = useState(13)
@@ -75,7 +76,8 @@ export function Terminal({ onInput, onResize, termRef, quickCommands, tokenLimit
       fitAddon.fit()
       onResize(term.cols, term.rows)
       term.focus()
-    }, 150)
+      onReady?.()
+    }, 200)
 
     termRef.current = term
     term.onData(onInput)
@@ -125,7 +127,6 @@ export function Terminal({ onInput, onResize, termRef, quickCommands, tokenLimit
             {onOpenAntigravity && (
               <button
                 onClick={(e) => { e.stopPropagation(); onOpenAntigravity() }}
-                onPointerDown={(e) => { e.stopPropagation(); e.preventDefault(); onOpenAntigravity() }}
                 className="text-[10px] font-black px-3 py-1.5 rounded-lg bg-amber-500/20 text-amber-400 border border-amber-500/30 active:scale-95 transition-all"
               >
                 → AG
@@ -133,7 +134,6 @@ export function Terminal({ onInput, onResize, termRef, quickCommands, tokenLimit
             )}
             <button
               onClick={(e) => { e.stopPropagation(); onDismissTokenLimit?.() }}
-              onPointerDown={(e) => { e.stopPropagation(); e.preventDefault(); onDismissTokenLimit?.() }}
               className="text-[10px] font-black px-2 py-1.5 rounded-lg bg-white/5 text-gray-500 border border-white/10 active:scale-95 transition-all"
             >
               ✕
@@ -162,8 +162,8 @@ export function Terminal({ onInput, onResize, termRef, quickCommands, tokenLimit
             {quickCommands.map((qc, i) => (
               <button
                 key={i}
-                onPointerDown={(e) => { e.stopPropagation(); e.preventDefault() }}
-                onPointerUp={(e) => { e.stopPropagation(); handleQuickCommand(qc) }}
+                onTouchStart={(e) => e.stopPropagation()}
+                onClick={(e) => { e.stopPropagation(); handleQuickCommand(qc) }}
                 className={`text-xs font-bold px-3 py-1 rounded-full border transition-all active:scale-95 ${variantClass(qc.variant)}`}
               >
                 {qc.label}
@@ -191,16 +191,16 @@ export function Terminal({ onInput, onResize, termRef, quickCommands, tokenLimit
           {/* Zoom controls */}
           <div className="flex items-center bg-black/40 border border-white/10 rounded-xl overflow-hidden">
             <button
-              onPointerDown={(e) => { e.stopPropagation(); e.preventDefault() }}
-              onPointerUp={(e) => { e.stopPropagation(); setFontSize(f => Math.max(9, f - 1)) }}
+              onTouchStart={(e) => e.stopPropagation()}
+              onClick={(e) => { e.stopPropagation(); setFontSize(f => Math.max(9, f - 1)) }}
               className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-white hover:bg-white/5 transition-colors font-bold text-xs"
             >
               A-
             </button>
             <div className="w-[1px] bg-white/10 self-stretch" />
             <button
-              onPointerDown={(e) => { e.stopPropagation(); e.preventDefault() }}
-              onPointerUp={(e) => { e.stopPropagation(); setFontSize(f => Math.min(24, f + 1)) }}
+              onTouchStart={(e) => e.stopPropagation()}
+              onClick={(e) => { e.stopPropagation(); setFontSize(f => Math.min(24, f + 1)) }}
               className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-white hover:bg-white/5 transition-colors font-bold text-xs"
             >
               A+
@@ -209,8 +209,9 @@ export function Terminal({ onInput, onResize, termRef, quickCommands, tokenLimit
 
           {/* Send button */}
           <button
-            onPointerDown={(e) => { e.stopPropagation(); e.preventDefault() }}
-            onPointerUp={(e) => { e.stopPropagation(); handleSend() }}
+            type="submit"
+            onTouchStart={(e) => e.stopPropagation()}
+            onClick={(e) => e.stopPropagation()}
             className="w-8 h-8 flex items-center justify-center bg-teal-500/20 text-teal-400 border border-teal-500/30 rounded-xl text-sm font-bold transition-all active:scale-95 hover:bg-teal-500/30"
           >
             ↵

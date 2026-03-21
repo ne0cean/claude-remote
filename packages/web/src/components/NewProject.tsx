@@ -127,7 +127,12 @@ export function NewProject({ serverUrl, onCreated, onCancel }: NewProjectProps) 
         : 'failed'
 
       if (data.githubError) {
-        setGithubWarning(data.githubError)
+        const msg = data.githubError.includes('403')
+          ? 'GitHub 토큰 권한 부족 — Settings → Developer settings → Token에서 repo 권한(Administration: Read & Write)을 추가하세요'
+          : data.githubError.includes('422')
+          ? '같은 이름의 GitHub 레포가 이미 존재합니다'
+          : data.githubError
+        setGithubWarning(msg)
       } else if (!data.hasToken) {
         setGithubWarning('GITHUB_TOKEN 미설정 — 로컬에만 생성됨')
       }

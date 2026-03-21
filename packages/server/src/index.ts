@@ -191,6 +191,36 @@ app.get('/api/github/repos', async (c) => {
   return c.json(repos)
 })
 
+// Korean → romanized keyword map for fallback naming
+const KR_MAP: Record<string, string> = {
+  '앱': 'app', '관리': 'manager', '시스템': 'system', '도구': 'tool',
+  '서비스': 'service', '플랫폼': 'platform', '일정': 'schedule',
+  '자동': 'auto', '개인': 'personal', '프로젝트': 'project', '봇': 'bot',
+  '분석': 'analytics', '대시보드': 'dashboard', '모니터링': 'monitor',
+  '채팅': 'chat', '검색': 'search', '알림': 'notify', '추적': 'tracker',
+  '변환': 'converter', '생성': 'generator', '기록': 'logger', '메모': 'memo',
+  '학습': 'learn', '번역': 'translate', '요약': 'summarize', '계산': 'calc',
+  '예약': 'booking', '결제': 'pay', '인증': 'auth', '저장': 'vault',
+  '공유': 'share', '편집': 'editor', '뉴스': 'news', '날씨': 'weather',
+  '음악': 'music', '사진': 'photo', '영상': 'video', '게임': 'game',
+  '건강': 'health', '운동': 'fitness', '요리': 'recipe', '쇼핑': 'shop',
+  '지도': 'maps', '여행': 'travel', '가계부': 'ledger', '일기': 'diary',
+  '타이머': 'timer', '캘린더': 'calendar', '리모컨': 'remote',
+  '클라우드': 'cloud', '데이터': 'data', '파일': 'file', '코드': 'code',
+}
+
+function koreanToKeywords(text: string): string[] {
+  const words: string[] = []
+  // Extract Korean words and map them
+  for (const [kr, en] of Object.entries(KR_MAP)) {
+    if (text.includes(kr)) words.push(en)
+  }
+  // Extract English words
+  const eng = text.match(/[a-zA-Z]{2,}/g)
+  if (eng) words.push(...eng.map(w => w.toLowerCase()))
+  return [...new Set(words)].slice(0, 4)
+}
+
 // AI Name Suggestions — uses claude CLI for smart naming
 app.post('/api/suggest-names', async (c) => {
   const { description } = await c.req.json() as { description?: string }
@@ -203,12 +233,25 @@ app.post('/api/suggest-names', async (c) => {
 
 Project idea: "${description.slice(0, 200)}"`
 
+    // Remove CLAUDECODE env to avoid nested session block
+    const cleanEnv = { ...process.env }
+    delete cleanEnv.CLAUDECODE
+    delete cleanEnv.CLAUDE_CODE
+
     const proc = Bun.spawn(['claude', '-p', prompt], {
       stdout: 'pipe',
       stderr: 'pipe',
-      timeout: 15000,
+      env: cleanEnv,
     })
-    const output = await new Response(proc.stdout).text()
+
+    // Timeout: race between output and 15s timer
+    const output = await Promise.race([
+      new Response(proc.stdout).text(),
+      new Promise<string>((_, reject) => setTimeout(() => {
+        proc.kill()
+        reject(new Error('timeout'))
+      }, 15000)),
+    ])
     await proc.exited
 
     // Extract JSON array from output
@@ -226,11 +269,14 @@ Project idea: "${description.slice(0, 200)}"`
     throw new Error('Failed to parse AI response')
   } catch (err: any) {
     console.warn(`[suggest-names] AI fallback: ${err?.message}`)
-    // Fallback: simple local generation
-    const words = description.replace(/[^a-zA-Z0-9\s]/g, ' ').split(/\s+/).filter(w => w.length > 1).slice(0, 3)
-    const base = words.map(w => w.toLowerCase()).join('-') || 'new-project'
+    // Fallback: Korean-aware local generation
+    const keywords = koreanToKeywords(description)
+    if (keywords.length === 0) keywords.push('project')
+    const base = keywords.slice(0, 3).join('-')
+    const alt1 = keywords.length > 1 ? `${keywords[0]}-${keywords[1]}` : `${keywords[0]}-app`
+    const alt2 = `${keywords[0]}-${Date.now().toString(36).slice(-4)}`
     return c.json({
-      names: [base, `${base}-app`, `${words[0]?.toLowerCase() || 'project'}-${Date.now().toString(36).slice(-4)}`],
+      names: [base, alt1, alt2].map(n => n.replace(/-+/g, '-').replace(/^-|-$/g, '')),
       source: 'fallback',
     })
   }
@@ -445,10 +491,17 @@ const server = Bun.serve({
       const msg = JSON.parse(raw as string)
 
       if (msg.type === 'new_session') {
-        const session = createSession(msg.provider as ProviderName, msg.cwd ?? process.cwd())
-        session.pty.onData((data) => ws.send(JSON.stringify({ type: 'output', data })))
-        ;(ws as any).data = { sessionId: session.id }
-        ws.send(JSON.stringify({ type: 'session_created', sessionId: session.id, provider: msg.provider, cwd: session.cwd }))
+        try {
+          const session = createSession(msg.provider as ProviderName, msg.cwd ?? process.cwd())
+          session.pty.onData((data) => ws.send(JSON.stringify({ type: 'output', data })))
+          ;(ws as any).data = { sessionId: session.id }
+          ws.send(JSON.stringify({ type: 'session_created', sessionId: session.id, provider: msg.provider, cwd: session.cwd }))
+          console.log(`[session] created ${session.id} (${msg.provider}) at ${session.cwd}`)
+        } catch (e) {
+          const errMsg = (e as Error).message
+          console.error(`[session] create failed:`, errMsg)
+          ws.send(JSON.stringify({ type: 'error', message: `Session creation failed: ${errMsg}` }))
+        }
         return
       }
 
@@ -470,7 +523,12 @@ const server = Bun.serve({
       if (msg.type === 'input') {
         getSession(sessionId)?.pty.write(msg.data)
       } else if (msg.type === 'resize') {
-        getSession(sessionId)?.pty.resize(msg.cols, msg.rows)
+        try {
+          const s = getSession(sessionId)
+          if (s && msg.cols > 0 && msg.rows > 0) s.pty.resize(msg.cols, msg.rows)
+        } catch (e) {
+          console.warn('[resize] failed:', (e as Error).message)
+        }
       } else if (msg.type === 'switch_provider') {
         const newSession = switchProvider(sessionId, msg.provider as ProviderName)
         newSession.pty.onData((data) => ws.send(JSON.stringify({ type: 'output', data })))

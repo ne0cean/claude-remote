@@ -191,7 +191,52 @@ app.get('/api/github/repos', async (c) => {
   return c.json(repos)
 })
 
-// New Project — create local folder + optional GitHub repo
+// AI Name Suggestions — uses claude CLI for smart naming
+app.post('/api/suggest-names', async (c) => {
+  const { description } = await c.req.json() as { description?: string }
+  if (!description || typeof description !== 'string') {
+    return c.json({ error: 'description required' }, 400)
+  }
+
+  try {
+    const prompt = `You are a GitHub repository naming expert. Given this project idea, suggest exactly 3 short, memorable repo names. Rules: lowercase, hyphens only, max 30 chars, no generic names like "my-app". Return ONLY a JSON array of 3 strings, nothing else.
+
+Project idea: "${description.slice(0, 200)}"`
+
+    const proc = Bun.spawn(['claude', '-p', prompt], {
+      stdout: 'pipe',
+      stderr: 'pipe',
+      timeout: 15000,
+    })
+    const output = await new Response(proc.stdout).text()
+    await proc.exited
+
+    // Extract JSON array from output
+    const match = output.match(/\[[\s\S]*?\]/)
+    if (match) {
+      const names = JSON.parse(match[0]) as string[]
+      const valid = names
+        .map((n: string) => n.toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, ''))
+        .filter((n: string) => n.length >= 2 && n.length <= 30)
+        .slice(0, 3)
+      if (valid.length > 0) {
+        return c.json({ names: valid, source: 'ai' })
+      }
+    }
+    throw new Error('Failed to parse AI response')
+  } catch (err: any) {
+    console.warn(`[suggest-names] AI fallback: ${err?.message}`)
+    // Fallback: simple local generation
+    const words = description.replace(/[^a-zA-Z0-9\s]/g, ' ').split(/\s+/).filter(w => w.length > 1).slice(0, 3)
+    const base = words.map(w => w.toLowerCase()).join('-') || 'new-project'
+    return c.json({
+      names: [base, `${base}-app`, `${words[0]?.toLowerCase() || 'project'}-${Date.now().toString(36).slice(-4)}`],
+      source: 'fallback',
+    })
+  }
+})
+
+// New Project — create local folder + optional GitHub repo (with step-by-step status)
 app.post('/api/new-project', async (c) => {
   const body = await c.req.json()
   const { name, description = '', private: isPrivate = true } = body as {
@@ -217,9 +262,12 @@ app.post('/api/new-project', async (c) => {
 
   const token = process.env.GITHUB_TOKEN
   let repoUrl: string | null = null
+  let githubError: string | null = null
+  const steps = { github: 'skipped' as string, folder: 'pending' as string, files: 'pending' as string }
 
-  // Try creating GitHub repo first
+  // Step 1: Try creating GitHub repo
   if (token) {
+    steps.github = 'pending'
     try {
       const ghRes = await fetch('https://api.github.com/user/repos', {
         method: 'POST',
@@ -235,21 +283,26 @@ app.post('/api/new-project', async (c) => {
       if (ghRes.ok) {
         const ghData = await ghRes.json() as any
         repoUrl = ghData.clone_url as string
-
         const cloneProc = Bun.spawn(['git', 'clone', repoUrl, projectPath], {
-          stdout: 'ignore',
-          stderr: 'ignore',
+          stdout: 'pipe',
+          stderr: 'pipe',
         })
         await cloneProc.exited
+        steps.github = 'done'
       } else {
-        console.warn(`[new-project] GitHub repo creation failed: ${ghRes.status}`)
+        const text = await ghRes.text()
+        githubError = `GitHub ${ghRes.status}: ${text.slice(0, 200)}`
+        steps.github = 'failed'
+        console.warn(`[new-project] GitHub repo creation failed: ${ghRes.status} ${text.slice(0, 100)}`)
       }
     } catch (err: any) {
-      console.warn(`[new-project] GitHub API error: ${err?.message ?? String(err)}`)
+      githubError = err?.message ?? String(err)
+      steps.github = 'failed'
+      console.warn(`[new-project] GitHub API error: ${githubError}`)
     }
   }
 
-  // Create local folder if git clone didn't
+  // Step 2: Create local folder if git clone didn't
   if (!existsSync(projectPath)) {
     mkdirSync(projectPath, { recursive: true })
     const initProc = Bun.spawn(['git', 'init'], {
@@ -259,8 +312,9 @@ app.post('/api/new-project', async (c) => {
     })
     await initProc.exited
   }
+  steps.folder = 'done'
 
-  // Create .context dir + template files
+  // Step 3: Create .context dir + template files
   const contextDir = `${projectPath}/.context`
   if (!existsSync(contextDir)) {
     mkdirSync(contextDir, { recursive: true })
@@ -274,6 +328,13 @@ app.post('/api/new-project', async (c) => {
 ## 핵심 원칙
 - **Coding Safety**: 파일 전체 읽고 수정, 수정 후 빌드 검증
 - **Commit Format**: \`[type]: 요약\` + NOW/NEXT/BLOCK 구조
+
+## 빌드 명령
+\`\`\`bash
+# 프로젝트에 맞게 수정하세요
+npm run build
+npm run test
+\`\`\`
 `)
 
   await Bun.write(`${projectPath}/.context/CURRENT.md`, `# CURRENT — ${safeName}
@@ -290,10 +351,18 @@ ${description}
 ## Blockers
 - (없음)
 `)
+  steps.files = 'done'
 
-  console.log(`[new-project] created: ${projectPath}${repoUrl ? ` (GitHub: ${repoUrl})` : ''}`)
+  console.log(`[new-project] created: ${projectPath}${repoUrl ? ` (GitHub: ${repoUrl})` : ' (local only)'}`)
 
-  return c.json({ ok: true, path: projectPath, repoUrl, localCreated: true })
+  return c.json({
+    ok: true,
+    path: projectPath,
+    repoUrl,
+    steps,
+    githubError,
+    hasToken: !!token,
+  })
 })
 
 // Open project in Antigravity IDE (Mac)

@@ -8,56 +8,24 @@ interface NewProjectProps {
 
 type Step = 1 | 2 | 3
 
-type CreationStepStatus = 'done' | 'loading' | 'waiting'
+type StepStatus = 'waiting' | 'loading' | 'done' | 'failed' | 'skipped'
 
 interface CreationProgress {
-  github: CreationStepStatus
-  folder: CreationStepStatus
-  files: CreationStepStatus
-  terminal: CreationStepStatus
-}
-
-function generateSuggestions(description: string): string[] {
-  const words = description
-    .replace(/[^a-zA-Z0-9가-힣\s]/g, ' ')
-    .split(/\s+/)
-    .filter(w => w.length > 1)
-    .slice(0, 6)
-
-  const toRoman = (word: string): string | null => {
-    if (/[가-힣]/.test(word)) {
-      const map: Record<string, string> = {
-        '앱': 'app', '관리': 'manager', '시스템': 'system',
-        '도구': 'tool', '서비스': 'service', '플랫폼': 'platform',
-        '일정': 'schedule', 'AI': 'ai', '자동': 'auto',
-        '개인': 'personal', '프로젝트': 'project', '봇': 'bot',
-      }
-      return map[word] || null
-    }
-    return word.toLowerCase()
-  }
-
-  const romanWords = words.map(toRoman).filter(Boolean) as string[]
-  const base = romanWords.slice(0, 3).join('-') || 'my-project'
-
-  return [
-    base,
-    base + '-v2',
-    romanWords[0] ? romanWords[0] + '-' + (romanWords[1] || 'app') : 'project-alpha',
-  ].map(s => s.replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, ''))
+  github: StepStatus
+  folder: StepStatus
+  files: StepStatus
+  terminal: StepStatus
 }
 
 function isValidName(name: string): boolean {
   return /^[a-z0-9][a-z0-9-]*[a-z0-9]$|^[a-z0-9]$/.test(name)
 }
 
-function StepIcon({ status }: { status: CreationStepStatus }) {
-  if (status === 'done') {
-    return <span className="text-teal-400 font-black w-5 text-center">✓</span>
-  }
-  if (status === 'loading') {
-    return <span className="text-white font-black w-5 text-center animate-spin inline-block">⟳</span>
-  }
+function StepIcon({ status }: { status: StepStatus }) {
+  if (status === 'done') return <span className="text-teal-400 font-black w-5 text-center">✓</span>
+  if (status === 'loading') return <span className="text-white font-black w-5 text-center animate-spin inline-block">⟳</span>
+  if (status === 'failed') return <span className="text-rose-400 font-black w-5 text-center">✗</span>
+  if (status === 'skipped') return <span className="text-gray-600 font-black w-5 text-center">—</span>
   return <span className="text-gray-600 font-black w-5 text-center">○</span>
 }
 
@@ -65,9 +33,12 @@ export function NewProject({ serverUrl, onCreated, onCancel }: NewProjectProps) 
   const [step, setStep] = useState<Step>(1)
   const [description, setDescription] = useState('')
   const [suggestions, setSuggestions] = useState<string[]>([])
+  const [suggestSource, setSuggestSource] = useState<'ai' | 'fallback' | null>(null)
+  const [suggestLoading, setSuggestLoading] = useState(false)
   const [selectedChip, setSelectedChip] = useState<string | null>(null)
   const [customName, setCustomName] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const [githubWarning, setGithubWarning] = useState<string | null>(null)
   const [progress, setProgress] = useState<CreationProgress>({
     github: 'waiting',
     folder: 'waiting',
@@ -75,17 +46,36 @@ export function NewProject({ serverUrl, onCreated, onCancel }: NewProjectProps) 
     terminal: 'waiting',
   })
 
-  // Derived: effective name (custom input overrides chip)
   const effectiveName = customName.trim() !== '' ? customName.trim() : (selectedChip ?? '')
   const nameIsValid = effectiveName !== '' && isValidName(effectiveName)
 
-  const handleNextStep1 = () => {
+  const handleNextStep1 = async () => {
     if (!description.trim()) return
-    const generated = generateSuggestions(description)
-    setSuggestions(generated)
-    setSelectedChip(generated[0] ?? null)
-    setCustomName('')
+    setSuggestLoading(true)
     setStep(2)
+
+    try {
+      const res = await fetch(`${serverUrl}/api/suggest-names`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ description: description.trim() }),
+      })
+      const data = await res.json() as { names?: string[]; source?: string }
+      if (data.names && data.names.length > 0) {
+        setSuggestions(data.names)
+        setSelectedChip(data.names[0])
+        setSuggestSource(data.source as 'ai' | 'fallback')
+      }
+    } catch {
+      // Fallback: simple local generation
+      const words = description.replace(/[^a-zA-Z0-9\s]/g, ' ').split(/\s+/).filter(w => w.length > 1).slice(0, 3)
+      const base = words.map(w => w.toLowerCase()).join('-') || 'new-project'
+      setSuggestions([base, `${base}-app`, `${words[0]?.toLowerCase() || 'project'}-kit`])
+      setSelectedChip(base)
+      setSuggestSource('fallback')
+    } finally {
+      setSuggestLoading(false)
+    }
   }
 
   const handleSelectChip = (name: string) => {
@@ -103,7 +93,8 @@ export function NewProject({ serverUrl, onCreated, onCancel }: NewProjectProps) 
 
     setStep(3)
     setError(null)
-    setProgress({ github: 'done', folder: 'done', files: 'loading', terminal: 'waiting' })
+    setGithubWarning(null)
+    setProgress({ github: 'loading', folder: 'waiting', files: 'waiting', terminal: 'waiting' })
 
     try {
       const res = await fetch(`${serverUrl}/api/new-project`, {
@@ -121,12 +112,35 @@ export function NewProject({ serverUrl, onCreated, onCancel }: NewProjectProps) 
         throw new Error(text || `HTTP ${res.status}`)
       }
 
-      const data = await res.json() as { path: string }
+      const data = await res.json() as {
+        ok: boolean
+        path: string
+        repoUrl: string | null
+        steps: { github: string; folder: string; files: string }
+        githubError: string | null
+        hasToken: boolean
+      }
 
-      setProgress({ github: 'done', folder: 'done', files: 'done', terminal: 'loading' })
+      // Map server steps to UI progress
+      const ghStatus: StepStatus = !data.hasToken ? 'skipped'
+        : data.steps.github === 'done' ? 'done'
+        : 'failed'
+
+      if (data.githubError) {
+        setGithubWarning(data.githubError)
+      } else if (!data.hasToken) {
+        setGithubWarning('GITHUB_TOKEN 미설정 — 로컬에만 생성됨')
+      }
+
+      setProgress({
+        github: ghStatus,
+        folder: data.steps.folder === 'done' ? 'done' : 'failed',
+        files: data.steps.files === 'done' ? 'done' : 'failed',
+        terminal: 'loading',
+      })
 
       setTimeout(() => {
-        setProgress({ github: 'done', folder: 'done', files: 'done', terminal: 'done' })
+        setProgress(prev => ({ ...prev, terminal: 'done' }))
         setTimeout(() => {
           onCreated(data.path, effectiveName)
         }, 600)
@@ -134,13 +148,8 @@ export function NewProject({ serverUrl, onCreated, onCancel }: NewProjectProps) 
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Unknown error'
       setError(message)
-      setProgress({ github: 'waiting', folder: 'waiting', files: 'waiting', terminal: 'waiting' })
+      setProgress({ github: 'failed', folder: 'failed', files: 'failed', terminal: 'failed' })
     }
-  }
-
-  const handleRetry = () => {
-    setError(null)
-    handleCreate()
   }
 
   const truncateDescription = (text: string, maxLen = 40) => {
@@ -160,7 +169,7 @@ export function NewProject({ serverUrl, onCreated, onCancel }: NewProjectProps) 
 
         <div className="flex flex-col gap-4 flex-1">
           <p className="text-gray-400 text-sm leading-relaxed">
-            프로젝트 아이디어를 설명해주세요
+            프로젝트 아이디어를 설명하면 Claude가 이름을 제안합니다
           </p>
 
           <textarea
@@ -201,25 +210,43 @@ export function NewProject({ serverUrl, onCreated, onCancel }: NewProjectProps) 
         </p>
 
         <div className="flex flex-col gap-3">
-          <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest">제안된 이름</span>
-          <div className="grid grid-cols-3 gap-2">
-            {suggestions.map(name => (
-              <button
-                key={name}
-                onClick={() => handleSelectChip(name)}
-                className={`glass-card p-4 cursor-pointer border transition-all text-left rounded-2xl ${
-                  selectedChip === name && customName === ''
-                    ? 'border-teal-500 bg-teal-500/10'
-                    : 'border-white/5'
-                }`}
-              >
-                <span className="text-white text-xs font-bold break-all">{name}</span>
-                {selectedChip === name && customName === '' && (
-                  <p className="text-teal-400 text-[10px] mt-1 font-bold">✓ 선택됨</p>
-                )}
-              </button>
-            ))}
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest">
+              {suggestLoading ? '이름 생성 중...' : suggestSource === 'ai' ? 'Claude 제안' : '제안된 이름'}
+            </span>
+            {suggestSource === 'ai' && !suggestLoading && (
+              <span className="text-[9px] bg-teal-500/20 text-teal-400 border border-teal-500/30 px-1.5 py-0.5 rounded font-bold">AI</span>
+            )}
           </div>
+
+          {suggestLoading ? (
+            <div className="grid grid-cols-3 gap-2">
+              {[1, 2, 3].map(i => (
+                <div key={i} className="glass-card p-4 border-white/5 animate-pulse rounded-2xl">
+                  <div className="h-4 bg-white/10 rounded w-full" />
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="grid grid-cols-3 gap-2">
+              {suggestions.map(name => (
+                <button
+                  key={name}
+                  onClick={() => handleSelectChip(name)}
+                  className={`glass-card p-4 cursor-pointer border transition-all text-left rounded-2xl ${
+                    selectedChip === name && customName === ''
+                      ? 'border-teal-500 bg-teal-500/10'
+                      : 'border-white/5'
+                  }`}
+                >
+                  <span className="text-white text-xs font-bold break-all">{name}</span>
+                  {selectedChip === name && customName === '' && (
+                    <p className="text-teal-400 text-[10px] mt-1 font-bold">✓ 선택됨</p>
+                  )}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         <div className="flex flex-col gap-2">
@@ -238,11 +265,10 @@ export function NewProject({ serverUrl, onCreated, onCancel }: NewProjectProps) 
 
         <button
           onClick={handleCreate}
-          disabled={!nameIsValid}
+          disabled={!nameIsValid || suggestLoading}
           className="bg-teal-500 text-black font-black px-6 py-3 rounded-xl disabled:opacity-40 transition-opacity flex items-center justify-center gap-2"
         >
-          <span>✨</span>
-          <span>프로젝트 생성</span>
+          프로젝트 생성
         </button>
       </div>
     )
@@ -252,8 +278,8 @@ export function NewProject({ serverUrl, onCreated, onCancel }: NewProjectProps) 
   const creationSteps: { key: keyof CreationProgress; label: string }[] = [
     { key: 'github', label: 'GitHub 레포 생성' },
     { key: 'folder', label: '로컬 폴더 생성' },
-    { key: 'files', label: '초기 파일 작성' },
-    { key: 'terminal', label: '터미널 연결' },
+    { key: 'files', label: '초기 파일 작성 (CLAUDE.md, CURRENT.md)' },
+    { key: 'terminal', label: 'Claude Code 세션 연결' },
   ]
 
   return (
@@ -277,19 +303,27 @@ export function NewProject({ serverUrl, onCreated, onCancel }: NewProjectProps) 
               <StepIcon status={progress[key]} />
               <span
                 className={`text-sm font-medium transition-colors ${
-                  progress[key] === 'done'
-                    ? 'text-white'
-                    : progress[key] === 'loading'
-                    ? 'text-white'
+                  progress[key] === 'done' ? 'text-white'
+                    : progress[key] === 'loading' ? 'text-white'
+                    : progress[key] === 'failed' ? 'text-rose-400'
+                    : progress[key] === 'skipped' ? 'text-gray-600'
                     : 'text-gray-600'
                 }`}
               >
                 {label}
+                {progress[key] === 'skipped' && <span className="text-[10px] ml-2 text-gray-600">(토큰 없음)</span>}
               </span>
             </div>
           ))}
         </div>
       </div>
+
+      {githubWarning && !error && (
+        <div className="glass-card p-4 border-yellow-500/20 bg-yellow-500/5">
+          <p className="text-yellow-400 text-xs font-bold">GitHub 알림</p>
+          <p className="text-gray-400 text-[11px] mt-1">{githubWarning}</p>
+        </div>
+      )}
 
       {error && (
         <div className="flex flex-col gap-3 p-5 rounded-2xl bg-rose-500/5 border border-rose-500/20 animate-in">
@@ -302,7 +336,7 @@ export function NewProject({ serverUrl, onCreated, onCancel }: NewProjectProps) 
           </div>
           <div className="flex gap-2">
             <button
-              onClick={handleRetry}
+              onClick={handleCreate}
               className="flex-1 py-2.5 rounded-xl bg-teal-500/10 border border-teal-500/30 text-teal-400 text-[11px] font-black uppercase tracking-widest transition-all active:scale-95"
             >
               재시도

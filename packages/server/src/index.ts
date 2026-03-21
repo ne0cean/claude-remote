@@ -491,17 +491,18 @@ const server = Bun.serve({
       const msg = JSON.parse(raw as string)
 
       if (msg.type === 'new_session') {
-        try {
-          const session = createSession(msg.provider as ProviderName, msg.cwd ?? process.cwd())
-          session.pty.onData((data) => ws.send(JSON.stringify({ type: 'output', data })))
-          ;(ws as any).data = { sessionId: session.id }
-          ws.send(JSON.stringify({ type: 'session_created', sessionId: session.id, provider: msg.provider, cwd: session.cwd }))
-          console.log(`[session] created ${session.id} (${msg.provider}) at ${session.cwd}`)
-        } catch (e) {
-          const errMsg = (e as Error).message
-          console.error(`[session] create failed:`, errMsg)
-          ws.send(JSON.stringify({ type: 'error', message: `Session creation failed: ${errMsg}` }))
-        }
+        createSession(msg.provider as ProviderName, msg.cwd ?? process.cwd())
+          .then((session) => {
+            session.pty.onData((data) => ws.send(JSON.stringify({ type: 'output', data })))
+            ;(ws as any).data = { sessionId: session.id }
+            ws.send(JSON.stringify({ type: 'session_created', sessionId: session.id, provider: msg.provider, cwd: session.cwd }))
+            console.log(`[session] created ${session.id} (${msg.provider}) at ${session.cwd}`)
+          })
+          .catch((e) => {
+            const errMsg = (e as Error).message
+            console.error(`[session] create failed:`, errMsg)
+            ws.send(JSON.stringify({ type: 'error', message: `Session creation failed: ${errMsg}` }))
+          })
         return
       }
 
@@ -530,10 +531,11 @@ const server = Bun.serve({
           console.warn('[resize] failed:', (e as Error).message)
         }
       } else if (msg.type === 'switch_provider') {
-        const newSession = switchProvider(sessionId, msg.provider as ProviderName)
-        newSession.pty.onData((data) => ws.send(JSON.stringify({ type: 'output', data })))
-        ;(ws as any).data.sessionId = newSession.id
-        ws.send(JSON.stringify({ type: 'provider_switched', provider: msg.provider, sessionId: newSession.id }))
+        switchProvider(sessionId, msg.provider as ProviderName).then((newSession) => {
+          newSession.pty.onData((data) => ws.send(JSON.stringify({ type: 'output', data })))
+          ;(ws as any).data.sessionId = newSession.id
+          ws.send(JSON.stringify({ type: 'provider_switched', provider: msg.provider, sessionId: newSession.id }))
+        })
       }
     },
     close(ws) {
